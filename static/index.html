@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KitchenPilot — AI 烹饪助手</title>
+<style>
+:root{--orange:#e07c3c;--orange-l:#fef3e7;--bg:#faf7f2;--card:#fff;--text:#333;--muted:#999;--radius:14px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);height:100vh;display:flex;flex-direction:column;color:var(--text)}
+
+/* header */
+.hdr{background:linear-gradient(135deg,#e07c3c,#f0985a);color:#fff;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 12px rgba(224,124,60,.25)}
+.hdr h1{font-size:22px;font-weight:700;letter-spacing:1px}
+.hdr h1 span{font-weight:400;opacity:.85;font-size:14px;margin-left:8px}
+.hdr-r{display:flex;gap:14px;align-items:center}
+.hdr-r select,.hdr-r button{padding:6px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.5);background:rgba(255,255,255,.15);color:#fff;font-size:13px;cursor:pointer;outline:none}
+.hdr-r select option{color:#333}
+.hdr-r .btn-stream{min-width:64px;transition:.2s}
+.hdr-r .btn-stream.on{background:rgba(255,255,255,.3);border-color:#fff}
+
+/* chat */
+.chat{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth}
+.chat::-webkit-scrollbar{width:5px}
+.chat::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}
+
+/* message bubbles */
+.msg{max-width:78%;animation:slideUp .35s ease-out}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{align-self:flex-end}
+.msg.user .bubble{background:var(--orange);color:#fff;border-radius:var(--radius) var(--radius) 4px var(--radius);padding:12px 18px;font-size:15px;line-height:1.6}
+.msg.ai{align-self:flex-start}
+.msg.ai .bubble{background:var(--card);border-radius:4px var(--radius) var(--radius) var(--radius);padding:16px 20px;font-size:15px;line-height:1.75;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.msg.ai .answer{white-space:pre-wrap;word-break:break-word}
+
+/* tool card */
+.tools-block{margin-bottom:12px;display:flex;flex-direction:column;gap:6px}
+.tool-card{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:var(--orange-l);border-radius:10px;font-size:13px;animation:slideUp .25s ease-out}
+.tool-card .tc-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.tool-card .tc-body{flex:1;min-width:0}
+.tool-card .tc-name{font-weight:600;color:var(--orange);margin-bottom:2px}
+.tool-card .tc-args{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool-card.done{opacity:.7}
+
+/* status line */
+.status-line{text-align:center;font-size:12px;color:var(--muted);padding:4px 0;animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* typewriter cursor */
+.tw-cursor::after{content:'|';animation:blink 1s infinite;color:var(--orange);font-weight:700}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* welcome */
+.welcome{text-align:center;padding:40px 20px;color:var(--muted)}
+.welcome .w-icon{font-size:56px;margin-bottom:16px}
+.welcome h2{font-size:20px;color:var(--text);margin-bottom:8px}
+.welcome p{font-size:14px;line-height:1.6}
+
+/* input */
+.inp-bar{padding:16px 28px;background:var(--card);border-top:1px solid #eee;display:flex;gap:10px;align-items:center;flex-shrink:0}
+.inp-bar input{flex:1;padding:14px 20px;border:2px solid #e8e0d8;border-radius:28px;font-size:15px;outline:none;background:var(--bg);transition:border .2s}
+.inp-bar input:focus{border-color:var(--orange);background:#fff}
+.inp-bar button{padding:12px 28px;background:var(--orange);color:#fff;border:none;border-radius:28px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+.inp-bar button:hover{background:#d06e2e;transform:scale(1.02)}
+.inp-bar button:disabled{background:#ccc;transform:none;cursor:not-allowed}
+.inp-bar .btn-clear{border:none;background:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 8px;white-space:nowrap}
+
+/* quick chips */
+.chips{display:flex;gap:8px;padding:4px 28px 12px;flex-wrap:wrap}
+.chip{padding:8px 16px;background:var(--card);border:1px solid #e0d6cc;border-radius:20px;font-size:13px;cursor:pointer;color:#555;transition:.15s;white-space:nowrap}
+.chip:hover{background:var(--orange-l);border-color:var(--orange);color:var(--orange)}
+.chip .chi-icon{margin-right:4px}
+
+/* tags */
+.tag{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;margin-top:10px;margin-right:6px}
+.tag.ok{background:#e8f5e9;color:#388e3c}
+.tag.warn{background:#fff3e0;color:#e65100}
+.tag.info{background:#e3f2fd;color:#1565c0}
+.tag.recipe-tag{background:#f3e5f5;color:#7b1fa2}
+
+/* empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px}
+.empty .e-icon{font-size:64px}
+.empty .e-title{font-size:18px;color:var(--text)}
+.empty .e-sub{font-size:14px;color:var(--muted)}
+
+/* responsive */
+@media(max-width:640px){.msg{max-width:92%}.hdr{padding:12px 16px}.inp-bar{padding:12px 16px}.chips{padding:4px 16px 8px}.chat{padding:16px}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>KitchenPilot<span>AI 烹饪助手</span></h1>
+  <div class="hdr-r">
+    <select id="userSelect">
+      <option value="demo_user">入门用户</option>
+      <option value="novice_user">完全新手</option>
+      <option value="expert_user">老饕</option>
+    </select>
+    <button class="btn-stream on" id="streamBtn" onclick="toggleStream()" title="切换流式/普通模式">SSE 流式</button>
+  </div>
+</div>
+
+<div class="chat" id="chat">
+  <div class="welcome">
+    <div class="w-icon"></div>
+    <h2>今晚吃什么？</h2>
+    <p>我是你的 AI 烹饪助手<br>可以教你做菜、帮你推荐、解答烹饪难题</p>
+  </div>
+</div>
+
+<div class="chips">
+  <button class="chip" onclick="quick(this)"><span class="chi-icon"></span>番茄炒蛋怎么做</button>
+  <button class="chip" onclick="quick(this)"><span class="chi-icon"></span>可乐鸡翅为什么太甜</button>
+  <button class="chip" onclick="quick(this)"><span class="chi-icon"></span>鸡蛋番茄能做什么</button>
+  <button class="chip" onclick="quick(this)"><span class="chi-icon"></span>今天吃什么</button>
+  <button class="chip" onclick="quick(this)"><span class="chi-icon"></span>新手适合做什么菜</button>
+</div>
+
+<div class="inp-bar">
+  <input id="qi" placeholder="输入烹饪问题…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}">
+  <button id="sb" onclick="send()">发送</button>
+  <button class="btn-clear" onclick="clearChat()" title="清空对话">清空</button>
+</div>
+
+<script>
+const C=document.getElementById('chat'),I=document.getElementById('qi'),B=document.getElementById('sb');
+let streaming=true,firstMsg=true;
+
+function toggleStream(){
+  streaming=!streaming;
+  document.getElementById('streamBtn').className='btn-stream'+(streaming?' on':'');
+  document.getElementById('streamBtn').textContent=streaming?'SSE 流式':'普通模式';
+}
+
+function S(){requestAnimationFrame(()=>{C.scrollTop=C.scrollHeight})}
+
+// 移除欢迎页
+function rmWelcome(){const w=document.querySelector('.welcome');if(w)w.remove();firstMsg=false}
+
+// 气泡消息
+function addBubble(role){
+  rmWelcome();
+  const d=document.createElement('div');d.className='msg '+role;
+  const b=document.createElement('div');b.className='bubble';
+  d.appendChild(b);C.appendChild(d);S();
+  return b;
+}
+
+// 状态行
+function addStatus(text){
+  const d=document.createElement('div');d.className='status-line';d.textContent=text;
+  C.appendChild(d);S();return d;
+}
+
+// ── SSE 流式 ──
+async function sendSSE(query,uid){
+  const bub=addBubble('user');bub.textContent=query;
+  const aiBub=addBubble('ai');
+  const statusEl=addStatus('正在分析问题…');
+
+  let toolsEl=null,answerEl=null;
+
+  try{
+    const r=await fetch('/api/chat/stream',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query,user_id:uid})});
+
+    const reader=r.body.getReader(),dec=new TextDecoder();
+    let buf='',evt='',dat='',toolCount=0;
+
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      buf+=dec.decode(value,{stream:true});
+
+      while(buf.includes('\n\n')){
+        const idx=buf.indexOf('\n\n');
+        const raw=buf.slice(0,idx);buf=buf.slice(idx+2);
+        evt='';dat='';
+        for(const ln of raw.split('\n')){
+          if(ln.startsWith('event:'))evt=ln.slice(6).trim();
+          if(ln.startsWith('data:'))dat=ln.slice(5).trim();
+        }
+        if(!dat)continue;
+        let p;try{p=JSON.parse(dat)}catch(e){continue}
+
+        switch(evt){
+          case 'tool_call':
+            toolCount++;
+            if(!toolsEl){toolsEl=document.createElement('div');toolsEl.className='tools-block';aiBub.appendChild(toolsEl)}
+            const tc=document.createElement('div');tc.className='tool-card';
+            tc.innerHTML=`<span class="tc-icon"></span><div class="tc-body"><div class="tc-name">${p.tool}</div><div class="tc-args">${JSON.stringify(p.args)}</div></div>`;
+            toolsEl.appendChild(tc);
+            statusEl.textContent=`已调用 ${toolCount} 个工具…`;
+            S();
+            break;
+
+          case 'tool_result':
+            // 工具卡片标记完成
+            if(toolsEl){
+              const cards=toolsEl.querySelectorAll('.tool-card');
+              if(cards.length>0)cards[cards.length-1].classList.add('done');
+            }
+            statusEl.textContent='正在整理回答…';
+            S();
+            break;
+
+          case 'generating':
+            if(statusEl)statusEl.remove();
+            if(!answerEl){answerEl=document.createElement('div');answerEl.className='answer tw-cursor';aiBub.appendChild(answerEl)}
+            S();
+            break;
+
+          case 'token':
+            if(!answerEl){answerEl=document.createElement('div');answerEl.className='answer tw-cursor';aiBub.appendChild(answerEl)}
+            answerEl.textContent+=p.text;
+            S();
+            break;
+
+          case 'done':
+            if(statusEl)statusEl.remove();
+            // 去掉光标
+            if(answerEl)answerEl.classList.remove('tw-cursor');
+            // 添加标签
+            if(toolCount>0){
+              const tag=document.createElement('span');tag.className='tag info';tag.textContent=`${toolCount} 个工具`;
+              aiBub.appendChild(tag);
+            }
+            break;
+        }
+      }
+    }
+  }catch(e){
+    if(statusEl)statusEl.remove();
+    const err=document.createElement('div');err.style.cssText='color:#d32f2f;font-size:14px';
+    err.textContent='请求失败：'+e.message;aiBub.appendChild(err);
+  }
+  B.disabled=false;I.focus();
+}
+
+// ── 非流式 ──
+async function sendNormal(query,uid){
+  const bub=addBubble('user');bub.textContent=query;
+  const aiBub=addBubble('ai');
+  const st=addStatus('处理中…');
+
+  try{
+    const r=await fetch('/api/chat',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query,user_id:uid})});
+    if(!r.ok){const t=await r.text();throw new Error(t.slice(0,200))}
+    const d=await r.json();st.remove();
+
+    // 工具
+    if(d.tool_calls?.length){
+      const tb=document.createElement('div');tb.className='tools-block';
+      d.tool_calls.forEach(t=>{
+        const tc=document.createElement('div');tc.className='tool-card done';
+        tc.innerHTML=`<span class="tc-icon"></span><div class="tc-body"><div class="tc-name">${t.tool}</div><div class="tc-args">${JSON.stringify(t.args)}</div></div>`;
+        tb.appendChild(tc);
+      });
+      aiBub.appendChild(tb);
+    }
+
+    // 回答
+    const ans=document.createElement('div');ans.className='answer';ans.textContent=d.answer;
+    aiBub.appendChild(ans);
+
+    // 标签
+    if(d.quality_passed!==undefined){
+      const t=document.createElement('span');t.className='tag '+(d.quality_passed?'ok':'warn');
+      t.textContent=d.quality_passed?'质检通过':'已添加安全提醒';aiBub.appendChild(t);
+    }
+    if(d.active_recipe){
+      const t=document.createElement('span');t.className='tag recipe-tag';
+      t.textContent=d.active_recipe;aiBub.appendChild(t);
+    }
+  }catch(e){
+    st.remove();
+    const err=document.createElement('div');err.style.cssText='color:#d32f2f;font-size:14px';
+    err.textContent='请求失败：'+e.message;aiBub.appendChild(err);
+  }
+  B.disabled=false;I.focus();
+}
+
+// ── 入口 ──
+function send(){
+  const q=I.value.trim();if(!q)return;I.value='';B.disabled=true;
+  const uid=document.getElementById('userSelect').value;
+  streaming?sendSSE(q,uid):sendNormal(q,uid);
+}
+
+function clearChat(){
+  C.innerHTML=`<div class="welcome"><div class="w-icon"></div><h2>今晚吃什么？</h2><p>我是你的 AI 烹饪助手<br>可以教你做菜、帮你推荐、解答烹饪难题</p></div>`;
+  firstMsg=true;
+}
+
+function quick(btn){I.value=btn.textContent.replace(/^.\s*/,'');send()}
+</script>
+</body>
+</html>

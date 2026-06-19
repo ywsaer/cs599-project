@@ -1,0 +1,22 @@
+{
+  "retrieval": {
+    "test": "RAG 检索 Recall@5",
+    "recall": 1.0,
+    "hits": 4,
+    "total": 4
+  },
+  "tool_calling": {
+    "test": "工具调用正确率",
+    "accuracy": 0.6666666666666666,
+    "correct": 6,
+    "total": 9
+  },
+  "latency": {
+    "test": "端到端延迟",
+    "avg_ms": 9802.649399993243,
+    "p50_ms": 11611.147799994797,
+    "min_ms": 7872.831899905577,
+    "max_ms": 11693.636400043033,
+    "samples": 4
+  }
+}
